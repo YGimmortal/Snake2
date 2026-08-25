@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Shop — HORIZON SNAKE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div id="app">
+  <div class="panel">
+    <div class="back-row">
+      <a href="index.html"><button class="icon-btn"><span data-icon="back"></span></button></a>
+      <h2>SHOP</h2>
+      <div style="width:38px"></div>
+    </div>
+    <div class="stat coin" style="margin-bottom:14px;"><div class="label">Balance</div><div class="value" id="shop-coins">0 ¢</div></div>
+
+    <div class="tabs" id="shop-tabs">
+      <button data-tab="skins" class="active"><svg class="hs-icon" width="14" height="14" viewBox="0 0 24 24" style="vertical-align:-2px"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2.2-1 2.2-2.1 0-.5-.2-1-.6-1.4-.4-.4-.6-.9-.6-1.4 0-1.1.9-2 2-2H17a4 4 0 0 0 4-4c0-4.6-4-7.1-9-7.1z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="7.5" cy="11" r="1.1" fill="currentColor"/><circle cx="9.5" cy="7.3" r="1.1" fill="currentColor"/><circle cx="14.3" cy="7" r="1.1" fill="currentColor"/><circle cx="16.6" cy="10.6" r="1.1" fill="currentColor"/></svg> Skins</button>
+      <button data-tab="backgrounds"><svg class="hs-icon" width="14" height="14" viewBox="0 0 24 24" style="vertical-align:-2px"><rect x="3.5" y="4.5" width="17" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8.5" cy="9.5" r="1.6" fill="currentColor"/><path d="M4 17l5.5-5.5L13 15l3-3 4 4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg> Backgrounds</button>
+      <button data-tab="trails"><svg class="hs-icon" width="14" height="14" viewBox="0 0 24 24" style="vertical-align:-2px"><path d="M12 3l1.2 3.6L17 8l-3.8 1.4L12 13l-1.2-3.6L7 8l3.8-1.4z" fill="currentColor"/><path d="M18.5 14l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" fill="currentColor"/></svg> Trails</button>
+    </div>
+
+    <div id="tab-skins">
+      <div class="skin-grid" id="skin-grid"></div>
+    </div>
+
+    <div id="tab-backgrounds" style="display:none;">
+      <p class="upload-hint">Own any background for 4000 ¢ and upload your own image — it's resized &amp; compressed to fit, then saved to this browser only.</p>
+      <input type="file" accept="image/*" id="bg-upload-input" class="bg-upload-input" />
+      <div class="skin-grid" id="bg-grid"></div>
+    </div>
+
+    <div id="tab-trails" style="display:none;">
+      <p class="upload-hint">Trails leave a faint particle streak behind your snake while you play.</p>
+      <div class="skin-grid" id="trail-grid"></div>
+    </div>
+  </div>
+</div>
+
+<script src="assets/common.js"></script>
+<script>document.querySelectorAll("[data-icon]").forEach(el => el.innerHTML = icon(el.dataset.icon, 14));</script>
+<script>
+  function shake(el) {
+    el.animate([{ transform: "translateX(0)" }, { transform: "translateX(-6px)" }, { transform: "translateX(6px)" }, { transform: "translateX(0)" }], { duration: 250 });
+  }
+  function powerLabel(power) {
+    if (!power) return "";
+    if (power.type === "score") return '<span class="hs-icon-inline">'+icon("bolt",11)+'</span> +' + Math.round(power.value * 100) + "% score";
+    if (power.type === "coin") return '<span class="hs-icon-inline">'+icon("coin",11)+'</span> +' + Math.round(power.value * 100) + "% coins";
+    if (power.type === "combo") return '<span class="hs-icon-inline">'+icon("flame",11)+'</span> +' + (power.value / 1000).toFixed(1) + "s combo window";
+    return "";
+  }
+  function refreshCoins() { document.getElementById("shop-coins").textContent = fmtCoins(save.coins); }
+
+  /* ---------------- SKINS ---------------- */
+  function buildSkinGrid() {
+    const grid = document.getElementById("skin-grid");
+    grid.innerHTML = "";
+    animatedSkinCanvases = [];
+    SKINS.forEach(skin => {
+      const owned = save.ownedSkins.includes(skin.id);
+      const selected = save.selectedSkin === skin.id;
+      const card = document.createElement("div");
+      card.className = "skin-card" + (selected ? " selected" : "");
+      card.innerHTML = `
+        <canvas></canvas>
+        <div class="skin-name">${skin.name}</div>
+        <div class="skin-tier">${skin.tier}</div>
+        ${skin.power ? `<div class="skin-power">${powerLabel(skin.power)}</div>` : ``}
+        ${owned ? `<div class="skin-owned">${selected ? "EQUIPPED" : "OWNED · tap to equip"}</div>` : `<div class="skin-price">${skin.price} ¢ · tap to buy</div>`}
+        ${!owned ? `<div class="skin-lock">${icon("lock", 13)}</div>` : ``}
+      `;
+      card.addEventListener("click", () => {
+        ensureAudio(); sfx.select();
+        if (owned) {
+          save.selectedSkin = skin.id;
+          persist(); buildSkinGrid();
+        } else if (save.coins >= skin.price) {
+          save.coins -= skin.price;
+          save.ownedSkins.push(skin.id);
+          save.selectedSkin = skin.id;
+          persist(); buildSkinGrid(); refreshCoins();
+        } else { shake(card); }
+      });
+      grid.appendChild(card);
+      const cv = card.querySelector("canvas");
+      drawSkinPreview(cv, skin);
+      if (skin.anim) animatedSkinCanvases.push({ cv, skin });
+    });
+  }
+  /* redraw animated (epic+) skin previews on a light interval instead of every frame */
+  let animatedSkinCanvases = [];
+  setInterval(() => {
+    if (document.getElementById("tab-skins").style.display === "none") return;
+    animatedSkinCanvases.forEach(({ cv, skin }) => { if (cv.isConnected) drawSkinPreview(cv, skin); });
+  }, 90);
+
+  /* ---------------- BACKGROUNDS ---------------- */
+  let animatedBgCanvases = [];
+  function buildBgGrid() {
+    animatedBgCanvases = [];
+
+    const grid = document.getElementById("bg-grid");
+    grid.innerHTML = "";
+    BACKGROUNDS.forEach(bg => {
+      const owned = bg.type === "upload" ? !!save.customBackgroundImage : save.ownedBackgrounds.includes(bg.id);
+      const selected = save.selectedBackground === bg.id;
+      const card = document.createElement("div");
+      card.className = "bg-card" + (selected ? " selected" : "");
+      card.innerHTML = `
+        <div class="bg-swatch"><canvas></canvas></div>
+        <div class="skin-name">${bg.name}</div>
+        ${bg.power ? `<div class="skin-power">${powerLabel(bg.power)}</div>` : ``}
+        ${owned ? `<div class="skin-owned">${selected ? "EQUIPPED" : "OWNED · tap to equip"}</div>` : `<div class="skin-price">${bg.price} ¢ · tap to buy</div>`}
+        ${!owned ? `<div class="skin-lock">${icon("lock", 13)}</div>` : ``}
+      `;
+      card.addEventListener("click", () => {
+        ensureAudio(); sfx.select();
+        if (bg.type === "upload") {
+          if (!owned) {
+            if (save.coins < bg.price) { shake(card); return; }
+            document.getElementById("bg-upload-input").click();
+            return;
+          }
+          save.selectedBackground = "custom";
+          persist(); buildBgGrid();
+          return;
+        }
+        if (owned) {
+          save.selectedBackground = bg.id;
+          persist(); buildBgGrid();
+        } else if (save.coins >= bg.price) {
+          save.coins -= bg.price;
+          save.ownedBackgrounds.push(bg.id);
+          save.selectedBackground = bg.id;
+          persist(); buildBgGrid(); refreshCoins();
+        } else { shake(card); }
+      });
+      grid.appendChild(card);
+      const cv = card.querySelector("canvas");
+      if (bg.type === "upload" && save.customBackgroundImage) {
+        const im = new Image(); im.onload = () => { const c=cv.getContext("2d"); c.drawImage(im,0,0,cv.width=cv.clientWidth*2,cv.height=cv.clientHeight*2); }; im.src=save.customBackgroundImage;
+      } else if (bg.type !== "upload") {
+        drawBackgroundPreview(cv, bg);
+        if (bg.treatment !== "gradient") animatedBgCanvases.push({ cv, bg });
+      }
+    });
+  }
+  setInterval(() => {
+    if (document.getElementById("tab-backgrounds").style.display === "none") return;
+    animatedBgCanvases.forEach(({cv,bg}) => { if (cv.isConnected) drawBackgroundPreview(cv,bg); });
+  }, 120);
+  document.getElementById("bg-upload-input").addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    readImageFileAsBackground(file, 640, (err, dataUrl) => {
+      if (err) { alert("Couldn't load that image."); return; }
+      save.coins -= 4000;
+      save.customBackgroundImage = dataUrl;
+      save.selectedBackground = "custom";
+      persist();
+      refreshCoins();
+      buildBgGrid();
+    });
+    e.target.value = "";
+  });
+
+  /* ---------------- TRAILS ---------------- */
+  function buildTrailGrid() {
+    const grid = document.getElementById("trail-grid");
+    grid.innerHTML = "";
+    TRAILS.forEach(trail => {
+      const owned = save.ownedTrails.includes(trail.id);
+      const selected = save.selectedTrail === trail.id;
+      const card = document.createElement("div");
+      card.className = "skin-card" + (selected ? " selected" : "");
+      const swatch = trail.color === "rainbow" ? "linear-gradient(90deg,#35e7ff,#8b5cf6,#ff2fd6)" : (trail.color || "#161a34");
+      card.innerHTML = `
+        <div class="bg-swatch" style="background:${swatch};height:40px;"></div>
+        <div class="skin-name">${trail.name}</div>
+        ${owned ? `<div class="skin-owned">${selected ? "EQUIPPED" : "OWNED · tap to equip"}</div>` : `<div class="skin-price">${trail.price} ¢ · tap to buy</div>`}
+        ${!owned ? `<div class="skin-lock">${icon("lock", 13)}</div>` : ``}
+      `;
+      card.addEventListener("click", () => {
+        ensureAudio(); sfx.select();
+        if (owned) {
+          save.selectedTrail = trail.id;
+          persist(); buildTrailGrid();
+        } else if (save.coins >= trail.price) {
+          save.coins -= trail.price;
+          save.ownedTrails.push(trail.id);
+          save.selectedTrail = trail.id;
+          persist(); buildTrailGrid(); refreshCoins();
+        } else { shake(card); }
+      });
+      grid.appendChild(card);
+    });
+  }
+
+  document.querySelectorAll("#shop-tabs button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      ensureAudio(); sfx.select();
+      document.querySelectorAll("#shop-tabs button").forEach(b => b.classList.toggle("active", b === btn));
+      ["skins", "backgrounds", "trails"].forEach(t => {
+        document.getElementById("tab-" + t).style.display = (t === btn.dataset.tab) ? "" : "none";
+      });
+    });
+  });
+
+  refreshCoins();
+  buildSkinGrid();
+  buildBgGrid();
+  buildTrailGrid();
+</script>
+</body>
+</html>
