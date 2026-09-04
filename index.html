@@ -42,6 +42,7 @@
     </div>
     </a>
 
+    <div id="leaderboard-list" style="margin-top:14px;"></div>
     <div id="history-list" style="margin-top:14px;"></div>
   </div>
   <div class="site-footer">HORIZON SNAKE · a snake arcade · saved locally in this browser</div>
@@ -53,10 +54,31 @@
   document.getElementById("menu-coins").textContent = fmtCoins(save.coins);
   document.getElementById("ach-count").textContent = save.achievements.length + "/" + ACHIEVEMENTS.length;
 
+  const board = document.getElementById("leaderboard-list");
+  const top = getTopScores(5);
+  if (top.length) {
+    const heading = document.createElement("div");
+    heading.className = "list-heading";
+    heading.style.margin = "0 0 6px";
+    heading.textContent = "Top Scores";
+    board.appendChild(heading);
+    top.forEach((h, i) => {
+      const row = document.createElement("div");
+      row.className = "history-row";
+      row.innerHTML = `<span>#${i + 1} — ${h.score} pts</span><span>+${h.coins} ¢</span>`;
+      board.appendChild(row);
+    });
+  }
+
   const hist = document.getElementById("history-list");
   if (save.history.length === 0) {
     hist.innerHTML = '<div class="empty-hint">No runs yet — play a round to start your record.</div>';
   } else {
+    const heading = document.createElement("div");
+    heading.className = "list-heading";
+    heading.style.margin = "0 0 6px";
+    heading.textContent = "Recent Runs";
+    hist.appendChild(heading);
     save.history.slice(0, 5).forEach(h => {
       const row = document.createElement("div");
       row.className = "history-row";
